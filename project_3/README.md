@@ -14,8 +14,8 @@ We will be scraping data from the top 1000 posts from the two subreddits: [r/win
 
 # Data Cleaning
 There were some posts with null, removed or deleted texts. The deleted post was removed, and the other two imputed with a null string. We removed unwanted noise like punctuations, delimiters, and stopwords, then lemmatized. The plots of the 20 most common unigrams and bigrams showed sufficient divergences to conclude that the two subreddits were sufficient for model building.
-![](../images/count-bi.png)
-![](../images/tfidf-bi.png)
+![](images/count-bi.png)
+![](images/tfidf-bi.png)
 
 It seems that while 'make wine' appears way more often than 'make beer', the process is split between 'make beer', 'brewing beer', 'ferment beer', and 'homebrewing beer'. More posts seem to be about beer production, while the wine subreddit seems to have some discussion about wine styles. 
 

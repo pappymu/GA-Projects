@@ -37,20 +37,20 @@ The models we considered are:
     * unigrams and bigrams
     * tf-idf
     
-We performed grid searches on a number of hyperparameters for each model, balancing between computational efficiency and model fitting. The models were then compared based on their ROC-AUC and f1 scores, which are shown in the table below
+We performed grid searches on a number of hyperparameters for each model, balancing between computational efficiency and model fitting. The models were then compared based on their ROC-AUC and accuracy scores, which are shown in the table below
 
-| models              | vectorizer   |   f1 score |   auc score |
-|:--------------------|:-------------|-----------:|------------:|
-| Logistic Regression | count        |      0.893 |       0.961 |
-| Logistic Regression | tf-idf       |      0.918 |       0.975 |
-| KNN Classifier      | count        |      0.625 |       0.851 |
-| KNN Classifier      | tf-idf       |      0.398 |       0.655 |
-| Naïve Bayes         | count        |      0.749 |       0.925 |
-| Naïve Bayes         | tf-idf       |      0.749 |       0.925 |
-| Random Forest       | count        |      0.884 |       0.965 |
-| Random Forest       | tf-idf       |      0.882 |       0.964 |
+| models              | vectorizer   |   accuracy score |   auc score |
+|:--------------------|:-------------|-----------------:|------------:|
+| Logistic Regression | count        |            0.897 |       0.961 |
+| Logistic Regression | tf-idf       |            0.917 |       0.975 |
+| KNN Classifier      | count        |            0.72  |       0.851 |
+| KNN Classifier      | tf-idf       |            0.58  |       0.655 |
+| Naïve Bayes         | count        |            0.789 |       0.925 |
+| Naïve Bayes         | tf-idf       |            0.789 |       0.925 |
+| Random Forest       | count        |            0.89  |       0.964 |
+| Random Forest       | tf-idf       |            0.888 |       0.966 |
 
-The top 2 performing models were the logistic regression with tf-idf vectorizer and random forest with count vectorizer The random forest model is less overfitted than the logistic regression model, but the latter has a good bias-variance tradeoff. We also see that the model's f1 score of 0.92 is significantly better than the baseline score of 0.5. We can thus conclude that the best model for our purposes is the **logistic regression with tf-idf vectorizer**.
+The top 2 performing models were the logistic regression with tf-idf vectorizer and random forest with tf-idf vectorizer. The random forest model is less overfitted than the logistic regression model, but the latter has a good bias-variance tradeoff. We also see that the logistic regression model's accuracy score of 0.92 is significantly better than the baseline score of 0.5. We can thus conclude that the best model for our purposes is the **logistic regression with tf-idf vectorizer**.
 
 It seems that the unigram/bigram mix has enough unique tokens to fit our model without too much overfitting. With more data and a more robust cleaning, we are confident that the model can be improved greatly to suit the customer's needs. But in the meantime, we are confident enough to present our model to the client as it has a relatively high score and would be able to sieve out whether any prospective customer would like to know about winemaking or homebrewing.
 

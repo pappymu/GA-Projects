@@ -25,7 +25,6 @@ warnings.filterwarnings(
 seed_everything(25429)
 
 # scoring
-import spacy
 from nltk.translate.bleu_score import sentence_bleu, SmoothingFunction
 
 device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
@@ -228,7 +227,7 @@ st.title('Question Generation From Text')
 
 with st.spinner('Loading Model...'):
     model = T5Model
-    best_model_dir = '-GA-Stuff/DSI-working-folder/QG-System/checkpoints/t5-chkpt-v2.ckpt'
+    best_model_dir = '../checkpoints/t5-chkpt-v2.ckpt'
     best_model = model.load_from_checkpoint(best_model_dir)
     # best_model = model.load_from_checkpoint(callback.best_model_path)
     best_model.freeze()

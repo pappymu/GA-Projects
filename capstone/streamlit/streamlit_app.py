@@ -31,17 +31,10 @@ from nltk.translate.bleu_score import sentence_bleu, SmoothingFunction
 device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
 print(device)
 
-# reading the dataset
-train = pd.read_pickle('../pickles/train.pkl')
-val = pd.read_pickle('../pickles/test.pkl')
-
 # loading the model
 hug = 't5-small'
 t5tokenizer = T5Tokenizer.from_pretrained(hug)
 t5model = T5ForConditionalGeneration.from_pretrained(hug, return_dict=True)
-model = t5model.to(device)
-best_model_dir = '../checkpoints/t5-chkpt-v2.ckpt'
-best_model = model.load_from_checkpoint(best_model_dir)
 
 # defining tokens
 SEP_TOKEN = '<sep>'
@@ -136,7 +129,51 @@ class DataModule(pl.LightningDataModule):
     def val_dataloader(self): 
         return DataLoader(self.val_dataset, batch_size=batch_size, num_workers=0)
 
-def generate(model: t5Model, answer:str, context:str) -> str:
+# hyperparameters
+num_epochs = 16
+batch_size = 32
+learning_rate = 0.001
+
+# model 
+class T5Model(pl.LightningModule):
+    def __init__(self):
+        super().__init__()
+        self.model = t5model
+        self.model.resize_token_embeddings(len(t5tokenizer)) # resizing after adding new tokens to the tokenizer
+
+    # feed forward pass
+    def forward(self, input_ids, attention_mask, labels=None):
+        output = self.model(input_ids=input_ids, attention_mask=attention_mask, labels=labels)
+        return output.loss, output.logits
+
+    # train model and compute loss
+    def training_step(self, batch, batch_idx):
+        input_ids = batch['input_ids']
+        attention_mask = batch['attention_mask']
+        labels = batch['labels']
+        loss, output = self(input_ids, attention_mask, labels)
+        self.log('train_loss', loss, prog_bar=True, logger=True, batch_size=batch_size)
+        return loss
+
+    # gets model predictions, returns loss
+    def validation_step(self, batch, batch_idx):
+        input_ids = batch['input_ids']
+        attention_mask = batch['attention_mask']
+        labels = batch['labels']
+        loss, output = self(input_ids, attention_mask, labels)
+        self.log('val_loss', loss, prog_bar=True, logger=True, batch_size=batch_size)
+        return {'val loss': loss}
+    
+    # def validation_epoch_end(self, outputs):
+    #     # outputs = list of dictionaries to print loss
+    #     avg_loss = torch.stack([x['val_loss'] for x in outputs]).mean()
+    #     tensorboard_logs = {'avg_val_loss': avg_loss}
+    #     return {'val_loss': avg_loss, 'log': tensorboard_logs}
+
+    def configure_optimizers(self):
+        return Adafactor(model.parameters(), scale_parameter=False, relative_step=False, lr=learning_rate) 
+
+def generate(model: T5Model, answer:str, context:str) -> str:
     source_encoding = t5tokenizer(
         f"{answer} {SEP_TOKEN} {context}",
         max_length=512,
@@ -172,28 +209,39 @@ def show_result(generated:str, answer:str, context:str, original_question:str=''
     matches = re.findall(regex, generated)
     matches[1] = matches[1][5:]
     final = {cat: match.strip() for cat, match in zip(['Answer', 'Question'], matches)}
-    
-    printBold('Context')
-    print(context)
-    printBold('Answer')
-    print(answer)
-    printBold('Generated Answer/Question')
-    print(final)
-    if original_question:
-        printBold('Original Question')
-        print(original_question)
-        gen = nlp(matches[1])
-        ori = nlp(original_question)
-        bleu_score = sentence_bleu(matches[1], original_question, smoothing_function=SmoothingFunction().method5)
-        cs_score = ori.similarity(gen)
-        printBold('Scores')
-        print(f"BLEU: {bleu_score}")
-        print(f'Cosine Similarity: {cs_score}')
-        return bleu_score, cs_score
-
-# data_module = DataModule("whatever_input", t5tokenizer, batch_size=32, source_max_token_len=128, target_max_token_len=64)
-# data_module.setup()
+    st.title('Generated')
+    st.write(final)
+    # if original_question:
+    #     printBold('Original Question')
+    #     print(original_question)
+    #     gen = nlp(matches[1])
+    #     ori = nlp(original_question)
+    #     bleu_score = sentence_bleu(matches[1], original_question, smoothing_function=SmoothingFunction().method5)
+    #     cs_score = ori.similarity(gen)
+    #     printBold('Scores')
+    #     print(f"BLEU: {bleu_score}")
+    #     print(f'Cosine Similarity: {cs_score}')
+    #     return bleu_score, cs_score
 
 # streamlit app
 st.title('Question Generation From Text')
-st.write('hello world!')
+
+with st.spinner('Loading Model...'):
+    model = T5Model
+    best_model_dir = '-GA-Stuff/DSI-working-folder/QG-System/checkpoints/t5-chkpt-v2.ckpt'
+    best_model = model.load_from_checkpoint(best_model_dir)
+    # best_model = model.load_from_checkpoint(callback.best_model_path)
+    best_model.freeze()
+
+with st.form('my_form'):
+    context = st.text_input('Enter a context passage for question generation:', 'The capital of France is Paris.')
+    answer = st.text_input('Give a correct answer, or [MASK] for unsupervised generation:', 'Paris')
+    # question = st.text_input('Question', 'What is the capital of France?')
+    # original_question = st.text_input('Original Question', 'What is the capital of France?')
+    submitted = st.form_submit_button('Generate')
+
+with st.spinner('Generating...'):
+    if submitted:
+        generated = generate(best_model, answer, context)
+        show_result(generated, answer, context)
+        

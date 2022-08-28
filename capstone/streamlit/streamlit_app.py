@@ -25,6 +25,7 @@ warnings.filterwarnings(
 seed_everything(25429)
 
 # scoring
+import spacy
 from nltk.translate.bleu_score import sentence_bleu, SmoothingFunction
 
 device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
@@ -172,7 +173,7 @@ class T5Model(pl.LightningModule):
     def configure_optimizers(self):
         return Adafactor(model.parameters(), scale_parameter=False, relative_step=False, lr=learning_rate) 
 
-def generate(model: T5Model, answer:str, context:str) -> str:
+def generate(model: T5Model, answer:str, context:str, beams, length, temper) -> str:
     source_encoding = t5tokenizer(
         f"{answer} {SEP_TOKEN} {context}",
         max_length=512,
@@ -186,11 +187,11 @@ def generate(model: T5Model, answer:str, context:str) -> str:
     generated_ids=model.model.generate(
         input_ids=source_encoding['input_ids'],
         attention_mask=source_encoding['attention_mask'],
-        num_beams=20,
-        max_length=126,
+        num_beams=beams,
+        max_length=length,
         repetition_penalty=2.5,
         length_penalty=0.8,
-        temperature=0.6,
+        temperature=temper,
         early_stopping=True,
         use_cache=True
     )
@@ -208,6 +209,10 @@ def show_result(generated:str, answer:str, context:str, original_question:str=''
     matches = re.findall(regex, generated)
     matches[1] = matches[1][5:]
     final = {cat: match.strip() for cat, match in zip(['Answer', 'Question'], matches)}
+    st.title('Context')
+    st.write(context)
+    st.title('Answer')
+    st.write(answer)
     st.title('Generated')
     st.write(final)
     # if original_question:
@@ -225,6 +230,16 @@ def show_result(generated:str, answer:str, context:str, original_question:str=''
 # streamlit app
 st.title('Question Generation From Text')
 
+with st.form('my_form'):
+    context = st.text_input('Enter a context passage for question generation:', 'The capital of France is Paris.')
+    answer = st.text_input('Give a correct answer, or [MASK] for unsupervised generation:', 'Paris')
+    # question = st.text_input('Question', 'What is the capital of France?')
+    # original_question = st.text_input('Original Question', 'What is the capital of France?')
+    beams = st.sidebar.slider('Beams', min_value=1, max_value=20)
+    length = st.sidebar.slider('Maximum length of generated question', min_value=50, max_value=200)
+    temper = st.sidebar.slider("Temperature", value = 1.0, min_value = 0.0, max_value=1.0, step=0.05)
+    submitted = st.form_submit_button('Generate')
+
 with st.spinner('Loading Model...'):
     model = T5Model
     best_model_dir = '../checkpoints/t5-chkpt-v2.ckpt'
@@ -232,15 +247,9 @@ with st.spinner('Loading Model...'):
     # best_model = model.load_from_checkpoint(callback.best_model_path)
     best_model.freeze()
 
-with st.form('my_form'):
-    context = st.text_input('Enter a context passage for question generation:', 'The capital of France is Paris.')
-    answer = st.text_input('Give a correct answer, or [MASK] for unsupervised generation:', 'Paris')
-    # question = st.text_input('Question', 'What is the capital of France?')
-    # original_question = st.text_input('Original Question', 'What is the capital of France?')
-    submitted = st.form_submit_button('Generate')
-
 with st.spinner('Generating...'):
     if submitted:
-        generated = generate(best_model, answer, context)
+        
+        generated = generate(best_model, answer, context, beams, length, temper)
         show_result(generated, answer, context)
         
